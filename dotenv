@@ -4,3 +4,6 @@ JWT_SECRET="your-very-secure-secret-key-change-this-in-production"
 
 # https://supabase.com/dashboard/project/_?showConnect=true
 DATABASE_URL="postgresql://[USER]:[YOUR-PASSWORD]@aws-1-eu-central-1.pooler.supabase.com:5432/postgres"
+
+DEMO_CLIENT_KEY=""
+DEMO_SECRET_KEY=""

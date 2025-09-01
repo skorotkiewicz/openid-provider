@@ -11,6 +11,7 @@ import { dirname, join } from "node:path";
 import { userRoutes } from "./routes/user.js";
 import { developerRoutes } from "./routes/developer.js";
 import { oauthRoutes } from "./routes/oauth.js";
+import { demoRoutes } from "./routes/demo.js";
 
 const app = new Hono();
 
@@ -44,6 +45,7 @@ app.use("*", async (c, next) => {
 app.route("/user", userRoutes); // User authentication (end users)
 app.route("/dev", developerRoutes); // Developer dashboard (programmers)
 app.route("/oauth", oauthRoutes); // OAuth endpoints
+app.route("/demo", demoRoutes); // Demo client
 
 // Home page
 app.get("/", (c) => {
@@ -51,7 +53,7 @@ app.get("/", (c) => {
 });
 
 // OpenID Connect Discovery
-app.get("/.well-known/openid_configuration", (c) => {
+app.get("/.well-known/openid-configuration", (c) => {
   const baseUrl = `http://${c.req.header("host")}`;
   return c.json({
     issuer: baseUrl,
