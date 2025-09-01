@@ -1,0 +1,29 @@
+doctype html
+html
+  head
+    title Login Error - OpenID Provider
+    meta(name="viewport", content="width=device-width, initial-scale=1")
+    style.
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 400px;
+        margin: 50px auto;
+        padding: 20px;
+        text-align: center;
+      }
+      .error {
+        color: #e74c3c;
+        margin: 20px 0;
+      }
+      a {
+        color: #3498db;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+  body
+    h1 Login Failed
+    p.error Invalid email or password
+    a(href=`/user/login?redirect_uri=${redirectUri}&client_id=${clientId}&state=${state}&scope=${scope}`) Try again

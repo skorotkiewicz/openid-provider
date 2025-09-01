@@ -215,18 +215,35 @@ oauthRoutes.get("/userinfo", async (c) => {
 			sub: user.id, // Always include sub (required by OpenID Connect)
 		};
 
-		// Add profile scope data
+		// Add email scope data
+		if (grantedScopes.includes("email")) {
+			response.email = user.email;
+		}
+
+		// Add granular profile scope data
+		if (grantedScopes.includes("name")) {
+			response.name = user.name;
+		}
+		if (grantedScopes.includes("about")) {
+			response.about = user.about;
+		}
+		if (grantedScopes.includes("website")) {
+			response.website = user.website;
+		}
+		if (grantedScopes.includes("twitter")) {
+			response.twitter = user.twitter;
+		}
+		if (grantedScopes.includes("github")) {
+			response.github = user.github;
+		}
+
+		// Backward compatibility: if profile scope is granted, include all profile fields
 		if (grantedScopes.includes("profile")) {
 			response.name = user.name;
 			response.about = user.about;
 			response.website = user.website;
 			response.twitter = user.twitter;
 			response.github = user.github;
-		}
-
-		// Add email scope data
-		if (grantedScopes.includes("email")) {
-			response.email = user.email;
 		}
 
 		return c.json(response);

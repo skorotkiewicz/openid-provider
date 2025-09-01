@@ -179,13 +179,29 @@
                     <strong>openid</strong> - Basic authentication only
                     <br><small>✅ User identification</small>
                 </label><br>
-                <label><input type="radio" name="scope" value="openid profile">
-                    <strong>openid profile</strong> - Include profile info
-                    <br><small>✅ User identification + Name + About + Website + Social</small>
-                </label><br>
                 <label><input type="radio" name="scope" value="openid email">
                     <strong>openid email</strong> - Include email address
                     <br><small>✅ User identification + Email</small>
+                </label><br>
+                <label><input type="radio" name="scope" value="openid name">
+                    <strong>openid name</strong> - Include name only
+                    <br><small>✅ User identification + Name</small>
+                </label><br>
+                <label><input type="radio" name="scope" value="openid name email">
+                    <strong>openid name email</strong> - Name and email
+                    <br><small>✅ User identification + Name + Email</small>
+                </label><br>
+                <label><input type="radio" name="scope" value="openid about website">
+                    <strong>openid about website</strong> - Personal info
+                    <br><small>✅ User identification + About + Website</small>
+                </label><br>
+                <label><input type="radio" name="scope" value="openid twitter github">
+                    <strong>openid twitter github</strong> - Social profiles
+                    <br><small>✅ User identification + Twitter + GitHub</small>
+                </label><br>
+                <label><input type="radio" name="scope" value="openid profile">
+                    <strong>openid profile</strong> - Full profile (legacy)
+                    <br><small>✅ User identification + Name + About + Website + Social</small>
                 </label><br>
                 <label><input type="radio" name="scope" value="openid profile email">
                     <strong>openid profile email</strong> - Full access

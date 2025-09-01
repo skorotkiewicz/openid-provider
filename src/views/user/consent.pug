@@ -1,0 +1,183 @@
+doctype html
+html
+  head
+    title Authorization Request - OpenID Provider
+    meta(name="viewport", content="width=device-width, initial-scale=1")
+    style.
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .consent-container {
+        background: white;
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        max-width: 500px;
+        width: 100%;
+      }
+      .app-info {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .app-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: #667eea;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin: 0 auto 15px;
+      }
+      .app-name {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+      }
+      .app-description {
+        color: #666;
+        margin-bottom: 15px;
+      }
+      .user-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+      .user-info strong {
+        color: #333;
+      }
+      .permissions {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+      }
+      .permissions h3 {
+        margin: 0 0 15px 0;
+        color: #333;
+        font-size: 18px;
+      }
+      .permission-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: white;
+        border-radius: 5px;
+        border: 1px solid #dee2e6;
+      }
+      .permission-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #28a745;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        font-size: 16px;
+      }
+      .permission-text h4 {
+        margin: 0 0 5px 0;
+        color: #333;
+        font-size: 16px;
+      }
+      .permission-text p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+      }
+      .buttons {
+        display: flex;
+        gap: 15px;
+      }
+      .btn {
+        flex: 1;
+        padding: 14px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .btn-allow {
+        background: #28a745;
+        color: white;
+      }
+      .btn-allow:hover {
+        background: #218838;
+        transform: translateY(-1px);
+      }
+      .btn-deny {
+        background: #dc3545;
+        color: white;
+      }
+      .btn-deny:hover {
+        background: #c82333;
+        transform: translateY(-1px);
+      }
+      .cancel-link {
+        text-align: center;
+        margin-top: 15px;
+      }
+      .cancel-link a {
+        color: #6c757d;
+        text-decoration: none;
+        font-size: 14px;
+      }
+      .cancel-link a:hover {
+        text-decoration: underline;
+      }
+
+  body
+    .consent-container
+      .app-info
+        .app-icon 🔐
+        .app-name= client.name
+        .app-description wants to access your account
+
+      .user-info
+        strong Hello, #{user.name || user.email}!
+        br
+        | This application is requesting access to your account.
+
+      .permissions
+        h3 This application will be able to:
+        each perm in scopeDetails
+          .permission-item
+            .permission-icon= perm.icon
+            .permission-text
+              h4= perm.title
+              p= perm.description
+
+      .buttons
+        form(method="POST", action="/user/consent/allow", style="flex: 1;")
+          input(type="hidden", name="client_id", value=clientId)
+          input(type="hidden", name="redirect_uri", value=redirectUri)
+          input(type="hidden", name="scope", value=scope)
+          input(type="hidden", name="state", value=state)
+          button.btn.btn-allow(type="submit") Allow Access
+        form(method="POST", action="/user/consent/deny", style="flex: 1;")
+          input(type="hidden", name="redirect_uri", value=redirectUri)
+          input(type="hidden", name="state", value=state)
+          button.btn.btn-deny(type="submit") Deny Access
+
+      .cancel-link
+        a(href=`${redirectUri}${state ? `?error=access_denied&state=${state}` : '?error=access_denied'}`) Cancel and return to application

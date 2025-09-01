@@ -49,7 +49,16 @@ app.get("/.well-known/openid_configuration", (c) => {
 		response_types_supported: ["code", "id_token", "token id_token"],
 		subject_types_supported: ["public"],
 		id_token_signing_alg_values_supported: ["RS256"],
-		scopes_supported: ["openid", "profile", "email"],
+		scopes_supported: [
+			"openid",
+			"profile",
+			"email",
+			"name",
+			"about",
+			"website",
+			"twitter",
+			"github",
+		],
 		token_endpoint_auth_methods_supported: [
 			"client_secret_basic",
 			"client_secret_post",

@@ -5,16 +5,79 @@ import { prisma } from "../lib/db.js";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { getScopeDetails } from "../utils/scope-details";
 
 export const userRoutes = new Hono();
 
+// Helper function to show consent screen
+async function showConsentScreen(
+	c: any,
+	user: any,
+	clientId: string,
+	redirectUri: string,
+	scope: string,
+	state: string,
+) {
+	// Get client information
+	const client = await prisma.oAuthClient.findUnique({
+		where: { clientId },
+	});
+
+	if (!client) {
+		return c.text("Invalid client", 400);
+	}
+
+	// Parse scopes
+	const requestedScopes = scope.split(" ").filter((s) => s.trim());
+	const scopeDetails = getScopeDetails(requestedScopes);
+
+	return (c as any).render("user/consent", {
+		client,
+		user,
+		clientId,
+		redirectUri,
+		scope,
+		state,
+		scopeDetails,
+	});
+}
+
 // User login page
-userRoutes.get("/login", (c) => {
+userRoutes.get("/login", async (c) => {
+	const redirectUri = c.req.query("redirect_uri") || "";
+	const clientId = c.req.query("client_id") || "";
+	const state = c.req.query("state") || "";
+	const scope = c.req.query("scope") || "";
+
+	// Check if user is already logged in and this is an OAuth flow
+	if (redirectUri && clientId) {
+		const sessionCookie = getCookie(c, "session");
+		if (sessionCookie) {
+			const session = await prisma.session.findUnique({
+				where: { id: sessionCookie },
+				include: { user: true },
+			});
+
+			if (session && session.expiresAt > new Date()) {
+				// User is logged in, show consent screen
+				return showConsentScreen(
+					c,
+					session.user,
+					clientId,
+					redirectUri,
+					scope,
+					state,
+				);
+			}
+		}
+	}
+
+	// User not logged in or not OAuth flow, show login form
 	return (c as any).render("user/login", {
-		redirectUri: c.req.query("redirect_uri") || "",
-		clientId: c.req.query("client_id") || "",
-		state: c.req.query("state") || "",
-		scope: c.req.query("scope") || "",
+		redirectUri,
+		clientId,
+		state,
+		scope,
 	});
 });
 
@@ -48,28 +111,12 @@ userRoutes.post(
 
 		const user = await prisma.user.findUnique({ where: { email } });
 		if (!user || !(await bcrypt.compare(password, user.password))) {
-			return c.html(
-				`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Login Error - OpenID Provider</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; text-align: center; }
-          .error { color: #e74c3c; margin: 20px 0; }
-          a { color: #3498db; text-decoration: none; }
-        </style>
-      </head>
-      <body>
-        <h1>Login Failed</h1>
-        <p class="error">Invalid email or password</p>
-        <a href="/user/login?redirect_uri=${redirect_uri}&client_id=${client_id}&state=${state}&scope=${scope}">Try again</a>
-      </body>
-      </html>
-    `,
-				401,
-			);
+			return (c as any).render("user/login-error", {
+				redirectUri: redirect_uri,
+				clientId: client_id,
+				state,
+				scope,
+			});
 		}
 
 		// Handle OAuth flow
@@ -137,139 +184,12 @@ userRoutes.get("/profile", async (c) => {
 	}
 
 	const user = session.user;
+	const success = c.req.query("success") === "1";
 
-	return c.html(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Profile - OpenID Provider</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          margin: 0;
-          padding: 20px;
-          min-height: 100vh;
-        }
-        .profile-container {
-          background: white;
-          padding: 40px;
-          border-radius: 10px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-          max-width: 600px;
-          margin: 0 auto;
-        }
-        h1 {
-          text-align: center;
-          color: #333;
-          margin-bottom: 30px;
-        }
-        .form-group {
-          margin-bottom: 20px;
-        }
-        label {
-          display: block;
-          margin-bottom: 5px;
-          color: #555;
-          font-weight: 500;
-        }
-        input, textarea {
-          width: 100%;
-          padding: 12px;
-          border: 1px solid #ddd;
-          border-radius: 5px;
-          font-size: 16px;
-          box-sizing: border-box;
-        }
-        input:focus, textarea:focus {
-          outline: none;
-          border-color: #667eea;
-          box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
-        }
-        textarea {
-          resize: vertical;
-          min-height: 100px;
-        }
-        button {
-          width: 100%;
-          padding: 14px;
-          background: #667eea;
-          color: white;
-          border: none;
-          border-radius: 5px;
-          font-size: 16px;
-          cursor: pointer;
-          transition: background 0.3s;
-        }
-        button:hover {
-          background: #5a6fd8;
-        }
-        .links {
-          text-align: center;
-          margin-top: 20px;
-        }
-        .links a {
-          color: #667eea;
-          text-decoration: none;
-          margin: 0 10px;
-        }
-        .links a:hover {
-          text-decoration: underline;
-        }
-        .success {
-          background: #d4edda;
-          color: #155724;
-          padding: 10px;
-          border-radius: 5px;
-          margin-bottom: 20px;
-          border: 1px solid #c3e6cb;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="profile-container">
-        <h1>Edit Your Profile</h1>
-
-        ${c.req.query("success") ? '<div class="success">Profile updated successfully!</div>' : ""}
-
-        <form method="POST" action="/user/profile">
-          <div class="form-group">
-            <label for="name">Full Name</label>
-            <input type="text" id="name" name="name" value="${user.name || ""}" placeholder="Your full name" />
-          </div>
-
-          <div class="form-group">
-            <label for="about">About Me</label>
-            <textarea id="about" name="about" placeholder="Tell us about yourself...">${user.about || ""}</textarea>
-          </div>
-
-          <div class="form-group">
-            <label for="website">Website</label>
-            <input type="url" id="website" name="website" value="${user.website || ""}" placeholder="https://yourwebsite.com" />
-          </div>
-
-          <div class="form-group">
-            <label for="twitter">Twitter</label>
-            <input type="text" id="twitter" name="twitter" value="${user.twitter || ""}" placeholder="@yourusername" />
-          </div>
-
-          <div class="form-group">
-            <label for="github">GitHub</label>
-            <input type="text" id="github" name="github" value="${user.github || ""}" placeholder="yourusername" />
-          </div>
-
-          <button type="submit">Update Profile</button>
-        </form>
-
-        <div class="links">
-          <a href="/">Home</a>
-          <a href="/user/logout">Logout</a>
-        </div>
-      </div>
-    </body>
-    </html>
-  `);
+	return (c as any).render("user/profile", {
+		user,
+		success,
+	});
 });
 
 // Update user profile
@@ -319,6 +239,97 @@ userRoutes.post(
 	},
 );
 
+// Handle consent approval
+userRoutes.post(
+	"/consent/allow",
+	zValidator(
+		"form",
+		z.object({
+			client_id: z.string(),
+			redirect_uri: z.string(),
+			scope: z.string(),
+			state: z.string().optional(),
+		}),
+	),
+	async (c) => {
+		const { client_id, redirect_uri, scope, state } = c.req.valid("form");
+
+		// Get user from session
+		const sessionCookie = getCookie(c, "session");
+		if (!sessionCookie) {
+			return c.redirect("/user/login");
+		}
+
+		const session = await prisma.session.findUnique({
+			where: { id: sessionCookie },
+			include: { user: true },
+		});
+
+		if (!session || session.expiresAt < new Date()) {
+			return c.redirect("/user/login");
+		}
+
+		const user = session.user;
+
+		// Get client information
+		const client = await prisma.oAuthClient.findUnique({
+			where: { clientId: client_id },
+		});
+
+		if (!client) {
+			return c.text("Invalid client", 400);
+		}
+
+		// Verify redirect_uri is registered for this client
+		if (!client.redirectUris.includes(redirect_uri)) {
+			return c.text("Invalid redirect URI", 400);
+		}
+
+		// Create authorization code
+		const code = uuidv4();
+		await prisma.authorizationCode.create({
+			data: {
+				code,
+				clientId: client.id,
+				userId: user.id,
+				redirectUri: redirect_uri,
+				scope: scope || "openid",
+				expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+			},
+		});
+
+		// Redirect back to client with authorization code
+		const redirectUrl = new URL(redirect_uri);
+		redirectUrl.searchParams.set("code", code);
+		if (state) redirectUrl.searchParams.set("state", state);
+
+		return c.redirect(redirectUrl.toString());
+	},
+);
+
+// Handle consent denial
+userRoutes.post(
+	"/consent/deny",
+	zValidator(
+		"form",
+		z.object({
+			redirect_uri: z.string(),
+			state: z.string().optional(),
+		}),
+	),
+	async (c) => {
+		const { redirect_uri, state } = c.req.valid("form");
+
+		// Redirect back to client with error
+		const redirectUrl = new URL(redirect_uri);
+		redirectUrl.searchParams.set("error", "access_denied");
+		redirectUrl.searchParams.set("error_description", "User denied access");
+		if (state) redirectUrl.searchParams.set("state", state);
+
+		return c.redirect(redirectUrl.toString());
+	},
+);
+
 // Logout
 userRoutes.get("/logout", async (c) => {
 	const sessionCookie = getCookie(c, "session");
@@ -351,28 +362,12 @@ userRoutes.post(
 
 		const existingUser = await prisma.user.findUnique({ where: { email } });
 		if (existingUser) {
-			return c.html(
-				`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Registration Error - OpenID Provider</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; text-align: center; }
-          .error { color: #e74c3c; margin: 20px 0; }
-          a { color: #3498db; text-decoration: none; }
-        </style>
-      </head>
-      <body>
-        <h1>Registration Failed</h1>
-        <p class="error">Email already registered</p>
-        <a href="/user/register?redirect_uri=${redirect_uri}&client_id=${client_id}&state=${state}&scope=${scope}">Try again</a>
-      </body>
-      </html>
-    `,
-				400,
-			);
+			return (c as any).render("user/register-error", {
+				redirectUri: redirect_uri,
+				clientId: client_id,
+				state,
+				scope,
+			});
 		}
 
 		const hashedPassword = await bcrypt.hash(password, 10);

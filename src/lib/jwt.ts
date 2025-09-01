@@ -27,16 +27,49 @@ export async function generateIdToken(
 	clientId: string,
 	scope?: string,
 ) {
-	return new SignJWT({
+	const payload: any = {
 		sub: user.id,
-		email: user.email,
-		name: user.name,
 		aud: clientId,
 		iss: "http://localhost:3000",
 		iat: Math.floor(Date.now() / 1000),
 		exp: Math.floor(Date.now() / 1000) + 3600,
 		scope: scope || "openid",
-	})
+	};
+
+	const scopeList = (scope || "openid").split(" ");
+
+	// Add email if email scope is granted
+	if (scopeList.includes("email")) {
+		payload.email = user.email;
+	}
+
+	// Add profile fields based on granular scopes
+	if (scopeList.includes("name")) {
+		payload.name = user.name;
+	}
+	if (scopeList.includes("about")) {
+		payload.about = user.about;
+	}
+	if (scopeList.includes("website")) {
+		payload.website = user.website;
+	}
+	if (scopeList.includes("twitter")) {
+		payload.twitter = user.twitter;
+	}
+	if (scopeList.includes("github")) {
+		payload.github = user.github;
+	}
+
+	// Backward compatibility: if profile scope is granted, include all profile fields
+	if (scopeList.includes("profile")) {
+		payload.name = user.name;
+		payload.about = user.about;
+		payload.website = user.website;
+		payload.twitter = user.twitter;
+		payload.github = user.github;
+	}
+
+	return new SignJWT(payload)
 		.setProtectedHeader({ alg: "RS256", kid: "1" })
 		.sign(privateKey);
 }
