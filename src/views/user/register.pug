@@ -1,0 +1,98 @@
+doctype html
+html
+  head
+    title User Registration - OpenID Provider
+    meta(name="viewport", content="width=device-width, initial-scale=1")
+    style.
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .register-container {
+        background: white;
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        max-width: 400px;
+        width: 100%;
+      }
+      h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 30px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        color: #555;
+        font-weight: 500;
+      }
+      input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+      input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+      }
+      button {
+        width: 100%;
+        padding: 14px;
+        background: #764ba2;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      button:hover {
+        background: #6a4190;
+      }
+      .links {
+        text-align: center;
+        margin-top: 20px;
+      }
+      .links a {
+        color: #764ba2;
+        text-decoration: none;
+        margin: 0 10px;
+      }
+      .links a:hover {
+        text-decoration: underline;
+      }
+  body
+    .register-container
+      h1 Create Account
+      form(method="POST", action="/user/register")
+        .form-group
+          label(for="name") Full Name
+          input#name(type="text", name="name", required, placeholder="John Doe")
+        .form-group
+          label(for="email") Email
+          input#email(type="email", name="email", required, placeholder="your@email.com")
+        .form-group
+          label(for="password") Password
+          input#password(type="password", name="password", required, placeholder="Create a password")
+        input(type="hidden", name="redirect_uri", value=redirectUri || "")
+        input(type="hidden", name="client_id", value=clientId || "")
+        input(type="hidden", name="state", value=state || "")
+        input(type="hidden", name="scope", value=scope || "")
+        button(type="submit") Create Account
+      .links
+        a(href=`/user/login?redirect_uri=${redirectUri || ""}&client_id=${clientId || ""}&state=${state || ""}&scope=${scope || ""}`) Sign in here
+        a(href="/") Back to Home
