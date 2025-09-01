@@ -1,0 +1,20 @@
+
+#version: "3.8"
+
+services:
+  db:
+    image: postgres:latest
+    # container_name: postgres-db
+    restart: no
+    environment:
+      POSTGRES_USER: mod
+      POSTGRES_PASSWORD: mod
+      POSTGRES_DB: openid #Create a default database
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    #env_file: ./.env.local
+
+volumes:
+  db_data:

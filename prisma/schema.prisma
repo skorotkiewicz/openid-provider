@@ -1,0 +1,71 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  //   provider = "sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clients           OAuthClient[]
+  sessions          Session[]
+  AuthorizationCode AuthorizationCode[]
+  RefreshToken      RefreshToken[]
+}
+
+model OAuthClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  clientSecret String
+  name         String
+  redirectUris String[]
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  authorizationCodes AuthorizationCode[]
+  refreshTokens      RefreshToken[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model AuthorizationCode {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  client      OAuthClient @relation(fields: [clientId], references: [id])
+  clientId    String
+  user        User        @relation(fields: [userId], references: [id])
+  userId      String
+  redirectUri String
+  scope       String
+  createdAt   DateTime    @default(now())
+  expiresAt   DateTime
+}
+
+model RefreshToken {
+  id        String      @id @default(cuid())
+  token     String      @unique
+  client    OAuthClient @relation(fields: [clientId], references: [id])
+  clientId  String
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime    @default(now())
+  expiresAt DateTime
+}
