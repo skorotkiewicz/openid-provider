@@ -199,6 +199,10 @@ oauthRoutes.get("/userinfo", async (c) => {
 				id: true,
 				email: true,
 				name: true,
+				about: true,
+				website: true,
+				twitter: true,
+				github: true,
 			},
 		});
 
@@ -214,6 +218,10 @@ oauthRoutes.get("/userinfo", async (c) => {
 		// Add profile scope data
 		if (grantedScopes.includes("profile")) {
 			response.name = user.name;
+			response.about = user.about;
+			response.website = user.website;
+			response.twitter = user.twitter;
+			response.github = user.github;
 		}
 
 		// Add email scope data

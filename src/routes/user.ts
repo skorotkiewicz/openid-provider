@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/db.js";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
+import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 
 export const userRoutes = new Hono();
 
@@ -100,9 +101,234 @@ userRoutes.post(
 			return c.redirect(redirectUrl.toString());
 		}
 
-		return c.redirect("/");
+		// Regular login - create session and redirect to profile
+		const session = await prisma.session.create({
+			data: {
+				userId: user.id,
+				expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+			},
+		});
+
+		setCookie(c, "session", session.id, {
+			httpOnly: true,
+			path: "/",
+			maxAge: 24 * 60 * 60, // 24 hours
+		});
+
+		return c.redirect("/user/profile");
 	},
 );
+
+// User profile page
+userRoutes.get("/profile", async (c) => {
+	// Get user from session
+	const sessionCookie = getCookie(c, "session");
+	if (!sessionCookie) {
+		return c.redirect("/user/login");
+	}
+
+	const session = await prisma.session.findUnique({
+		where: { id: sessionCookie },
+		include: { user: true },
+	});
+
+	if (!session || session.expiresAt < new Date()) {
+		return c.redirect("/user/login");
+	}
+
+	const user = session.user;
+
+	return c.html(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Profile - OpenID Provider</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          margin: 0;
+          padding: 20px;
+          min-height: 100vh;
+        }
+        .profile-container {
+          background: white;
+          padding: 40px;
+          border-radius: 10px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+          max-width: 600px;
+          margin: 0 auto;
+        }
+        h1 {
+          text-align: center;
+          color: #333;
+          margin-bottom: 30px;
+        }
+        .form-group {
+          margin-bottom: 20px;
+        }
+        label {
+          display: block;
+          margin-bottom: 5px;
+          color: #555;
+          font-weight: 500;
+        }
+        input, textarea {
+          width: 100%;
+          padding: 12px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          font-size: 16px;
+          box-sizing: border-box;
+        }
+        input:focus, textarea:focus {
+          outline: none;
+          border-color: #667eea;
+          box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+        textarea {
+          resize: vertical;
+          min-height: 100px;
+        }
+        button {
+          width: 100%;
+          padding: 14px;
+          background: #667eea;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          font-size: 16px;
+          cursor: pointer;
+          transition: background 0.3s;
+        }
+        button:hover {
+          background: #5a6fd8;
+        }
+        .links {
+          text-align: center;
+          margin-top: 20px;
+        }
+        .links a {
+          color: #667eea;
+          text-decoration: none;
+          margin: 0 10px;
+        }
+        .links a:hover {
+          text-decoration: underline;
+        }
+        .success {
+          background: #d4edda;
+          color: #155724;
+          padding: 10px;
+          border-radius: 5px;
+          margin-bottom: 20px;
+          border: 1px solid #c3e6cb;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="profile-container">
+        <h1>Edit Your Profile</h1>
+
+        ${c.req.query("success") ? '<div class="success">Profile updated successfully!</div>' : ""}
+
+        <form method="POST" action="/user/profile">
+          <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" value="${user.name || ""}" placeholder="Your full name" />
+          </div>
+
+          <div class="form-group">
+            <label for="about">About Me</label>
+            <textarea id="about" name="about" placeholder="Tell us about yourself...">${user.about || ""}</textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="website">Website</label>
+            <input type="url" id="website" name="website" value="${user.website || ""}" placeholder="https://yourwebsite.com" />
+          </div>
+
+          <div class="form-group">
+            <label for="twitter">Twitter</label>
+            <input type="text" id="twitter" name="twitter" value="${user.twitter || ""}" placeholder="@yourusername" />
+          </div>
+
+          <div class="form-group">
+            <label for="github">GitHub</label>
+            <input type="text" id="github" name="github" value="${user.github || ""}" placeholder="yourusername" />
+          </div>
+
+          <button type="submit">Update Profile</button>
+        </form>
+
+        <div class="links">
+          <a href="/">Home</a>
+          <a href="/user/logout">Logout</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// Update user profile
+userRoutes.post(
+	"/profile",
+	zValidator(
+		"form",
+		z.object({
+			name: z.string().optional(),
+			about: z.string().optional(),
+			website: z.string().optional(),
+			twitter: z.string().optional(),
+			github: z.string().optional(),
+		}),
+	),
+	async (c) => {
+		// Get user from session
+		const sessionCookie = getCookie(c, "session");
+		if (!sessionCookie) {
+			return c.redirect("/user/login");
+		}
+
+		const session = await prisma.session.findUnique({
+			where: { id: sessionCookie },
+			include: { user: true },
+		});
+
+		if (!session || session.expiresAt < new Date()) {
+			return c.redirect("/user/login");
+		}
+
+		const { name, about, website, twitter, github } = c.req.valid("form");
+
+		// Update user profile
+		await prisma.user.update({
+			where: { id: session.user.id },
+			data: {
+				name: name || null,
+				about: about || null,
+				website: website || null,
+				twitter: twitter || null,
+				github: github || null,
+			},
+		});
+
+		return c.redirect("/user/profile?success=1");
+	},
+);
+
+// Logout
+userRoutes.get("/logout", async (c) => {
+	const sessionCookie = getCookie(c, "session");
+	if (sessionCookie) {
+		await prisma.session.delete({ where: { id: sessionCookie } });
+	}
+
+	deleteCookie(c, "session");
+	return c.redirect("/");
+});
 
 // User register POST
 userRoutes.post(
@@ -164,6 +390,20 @@ userRoutes.post(
 			);
 		}
 
-		return c.redirect("/");
+		// Regular registration - create session and redirect to profile
+		const session = await prisma.session.create({
+			data: {
+				userId: user.id,
+				expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+			},
+		});
+
+		setCookie(c, "session", session.id, {
+			httpOnly: true,
+			path: "/",
+			maxAge: 24 * 60 * 60, // 24 hours
+		});
+
+		return c.redirect("/user/profile");
 	},
 );

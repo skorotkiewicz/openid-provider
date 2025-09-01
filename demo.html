@@ -70,6 +70,28 @@
             margin: 5px 0;
             color: #666;
         }
+        .profile-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+        .profile-section h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .profile-field {
+            margin: 8px 0;
+        }
+        .profile-field strong {
+            color: #495057;
+        }
+        .profile-field a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .profile-field a:hover {
+            text-decoration: underline;
+        }
         .logout-button {
             background: #e74c3c;
             color: white;
@@ -159,7 +181,7 @@
                 </label><br>
                 <label><input type="radio" name="scope" value="openid profile">
                     <strong>openid profile</strong> - Include profile info
-                    <br><small>✅ User identification + Name</small>
+                    <br><small>✅ User identification + Name + About + Website + Social</small>
                 </label><br>
                 <label><input type="radio" name="scope" value="openid email">
                     <strong>openid email</strong> - Include email address
@@ -167,7 +189,7 @@
                 </label><br>
                 <label><input type="radio" name="scope" value="openid profile email">
                     <strong>openid profile email</strong> - Full access
-                    <br><small>✅ User identification + Name + Email</small>
+                    <br><small>✅ User identification + Name + Email + About + Website + Social</small>
                 </label><br>
             </div>
 
@@ -379,6 +401,37 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
             // Set avatar initial
             const initial = (userInfo.name || userInfo.email || 'U').charAt(0).toUpperCase();
             document.getElementById('user-avatar').textContent = initial;
+
+            // Add profile information if available
+            let profileHTML = '';
+            if (userInfo.about || userInfo.website || userInfo.twitter || userInfo.github) {
+                profileHTML = '<div class="profile-section"><h4>Profile Information</h4>';
+
+                if (userInfo.about) {
+                    profileHTML += '<div class="profile-field"><strong>About:</strong> ' + userInfo.about + '</div>';
+                }
+                if (userInfo.website) {
+                    profileHTML += '<div class="profile-field"><strong>Website:</strong> <a href="' + userInfo.website + '" target="_blank">' + userInfo.website + '</a></div>';
+                }
+                if (userInfo.twitter) {
+                    const twitterUrl = userInfo.twitter.startsWith('@') ? 'https://twitter.com/' + userInfo.twitter.substring(1) : 'https://twitter.com/' + userInfo.twitter;
+                    profileHTML += '<div class="profile-field"><strong>Twitter:</strong> <a href="' + twitterUrl + '" target="_blank">' + userInfo.twitter + '</a></div>';
+                }
+                if (userInfo.github) {
+                    const githubUrl = userInfo.github.startsWith('http') ? userInfo.github : 'https://github.com/' + userInfo.github;
+                    profileHTML += '<div class="profile-field"><strong>GitHub:</strong> <a href="' + githubUrl + '" target="_blank">' + userInfo.github + '</a></div>';
+                }
+
+                profileHTML += '</div>';
+            }
+
+            // Add profile section after user details
+            const userDetails = document.querySelector('.user-details');
+            const existingProfile = userDetails.querySelector('.profile-section');
+            if (existingProfile) {
+                existingProfile.remove();
+            }
+            userDetails.insertAdjacentHTML('beforeend', profileHTML);
 
             showStatus('Login successful! Welcome ' + (userInfo.name || userInfo.email), 'success');
         }
