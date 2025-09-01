@@ -248,7 +248,7 @@ oauthRoutes.get("/userinfo", async (c) => {
     }
 
     return c.json(response);
-  } catch (error) {
+  } catch (_error) {
     return c.json({ error: "invalid_token" }, 401);
   }
 });

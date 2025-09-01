@@ -5,7 +5,7 @@ import { prisma } from "../lib/db.js";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
-import { getScopeDetails } from "../utils/scope-details";
+import { getScopeDetails } from "../utils/scope-details.js";
 
 export const userRoutes = new Hono();
 

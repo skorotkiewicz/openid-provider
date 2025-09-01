@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { logger } from "hono/logger";
+// import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { prettyJSON } from "hono/pretty-json";
 import pug from "pug";
@@ -21,7 +21,7 @@ app.use("*", prettyJSON());
 app.use("*", async (c, next) => {
   (c as any).render = (template: string, props?: any) => {
     const templatePath = `./src/views/${template}.pug`;
-    const html = pug.renderFile(templatePath, props || {}, undefined);
+    const html = pug.renderFile(templatePath, props || {});
     return c.html(html);
   };
   await next();

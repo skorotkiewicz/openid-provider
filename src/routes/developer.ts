@@ -213,7 +213,7 @@ developerRoutes.get("/api/me", async (c) => {
     }
 
     return c.json(user);
-  } catch (error) {
+  } catch (_error) {
     return c.json({ error: "Invalid token" }, 401);
   }
 });
@@ -253,7 +253,7 @@ developerRoutes.get("/api/clients", async (c) => {
     });
 
     return c.json(clients);
-  } catch (error) {
+  } catch (_error) {
     return c.json({ error: "Failed to fetch clients" }, 500);
   }
 });
@@ -334,7 +334,7 @@ developerRoutes.post(
         allowedScopes: client.allowedScopes,
         createdAt: client.createdAt,
       });
-    } catch (error) {
+    } catch (_error) {
       return c.json({ error: "Failed to create client" }, 500);
     }
   },
@@ -379,7 +379,7 @@ developerRoutes.delete("/api/clients/:id", async (c) => {
     });
 
     return c.json({ success: true });
-  } catch (error) {
+  } catch (_error) {
     return c.json({ error: "Failed to delete client" }, 500);
   }
 });
