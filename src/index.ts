@@ -4,6 +4,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { prettyJSON } from "hono/pretty-json";
 import pug from "pug";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 // Import routes
 import { userRoutes } from "./routes/user.js";
@@ -20,7 +22,9 @@ app.use("*", prettyJSON());
 // Custom Pug renderer
 app.use("*", async (c, next) => {
   (c as any).render = (template: string, props?: any) => {
-    const templatePath = `./src/views/${template}.pug`;
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const templatePath = join(__dirname, "views", `${template}.pug`);
     const html = pug.renderFile(templatePath, props || {});
     return c.html(html);
   };
