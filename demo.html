@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Client - OpenID Provider</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .demo-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .login-section {
+            text-align: center;
+            padding: 40px 20px;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .login-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+        .login-button:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+        .user-info {
+            background: #e8f4fd;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin: 0 auto 20px;
+        }
+        .user-details {
+            text-align: center;
+        }
+        .user-details h3 {
+            margin: 10px 0;
+            color: #333;
+        }
+        .user-details p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .logout-button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .logout-button:hover {
+            background: #c0392b;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .code-example {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>🔐 OpenID Provider Demo</h1>
+        <p>This demo shows how to integrate with our OpenID Provider using OAuth 2.0 Authorization Code Flow.</p>
+
+        <div id="login-section" class="login-section">
+            <h2>Step 1: Login with OpenID Provider</h2>
+            <p>Click the button below to authenticate using our OpenID Provider</p>
+            <button id="login-button" class="login-button" onclick="startOAuthFlow()">
+                🚀 Login with OpenID Provider
+            </button>
+            <div id="status" class="status hidden"></div>
+        </div>
+
+        <div id="user-section" class="user-info hidden">
+            <h2>✅ Authentication Successful!</h2>
+            <div class="user-avatar" id="user-avatar">👤</div>
+            <div class="user-details">
+                <h3 id="user-name">Loading...</h3>
+                <p><strong>Email:</strong> <span id="user-email">Loading...</span></p>
+                <p><strong>User ID:</strong> <span id="user-id">Loading...</span></p>
+                <p><strong>Login Time:</strong> <span id="login-time">Loading...</span></p>
+            </div>
+            <button class="logout-button" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="code-example">
+            <h3>OAuth Flow Implementation:</h3>
+            <pre id="code-display">
+// Current status will be shown here
+// 1. Click "Login with OpenID Provider"
+// 2. Redirect to authorization endpoint
+// 3. User logs in and grants permission
+// 4. Return with authorization code
+// 5. Exchange code for access token
+// 6. Fetch user information
+// 7. Display user data
+            </pre>
+        </div>
+    </div>
+
+
+    <!-- Client ID: 8b81837f-dde7-4b2f-823f-c774eafae2ad
+Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
+
+<script>
+        // Configuration
+        const OAUTH_CONFIG = {
+            clientId: '8b81837f-dde7-4b2f-823f-c774eafae2ad',
+            redirectUri: window.location.origin + window.location.pathname,
+            authorizationEndpoint: 'http://localhost:3000/oauth/authorize',
+            tokenEndpoint: 'http://localhost:3000/oauth/token',
+            userinfoEndpoint: 'http://localhost:3000/oauth/userinfo',
+            scope: 'openid profile email'
+        };
+
+        // State management
+        let accessToken = null;
+        let userInfo = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+
+            if (error) {
+                showStatus('Error: ' + error, 'error');
+                return;
+            }
+
+            if (code) {
+                // We have an authorization code, exchange it for tokens
+                exchangeCodeForToken(code);
+            } else if (localStorage.getItem('access_token')) {
+                // We have a stored token, try to use it
+                accessToken = localStorage.getItem('access_token');
+                fetchUserInfo();
+            } else {
+                // No code or token, show login button
+                showLoginSection();
+            }
+        });
+
+        function startOAuthFlow() {
+            showStatus('Redirecting to OpenID Provider...', 'loading');
+
+            // Generate state for CSRF protection
+            const state = generateState();
+
+            // Build authorization URL
+            const authUrl = new URL(OAUTH_CONFIG.authorizationEndpoint);
+            authUrl.searchParams.set('client_id', OAUTH_CONFIG.clientId);
+            authUrl.searchParams.set('response_type', 'code');
+            authUrl.searchParams.set('redirect_uri', OAUTH_CONFIG.redirectUri);
+            authUrl.searchParams.set('scope', OAUTH_CONFIG.scope);
+            authUrl.searchParams.set('state', state);
+
+            updateCodeDisplay('Redirecting to authorization endpoint...', authUrl.toString());
+
+            // Redirect to authorization endpoint
+            window.location.href = authUrl.toString();
+        }
+
+        async function exchangeCodeForToken(code) {
+            showStatus('Exchanging authorization code for access token...', 'loading');
+
+            try {
+                const response = await fetch(OAUTH_CONFIG.tokenEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        code: code,
+                        client_id: OAUTH_CONFIG.clientId,
+                        client_secret: 'f79054cd-4594-4fd3-8864-be571ecb2787', // In production, this should be secure
+                        redirect_uri: OAUTH_CONFIG.redirectUri
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to exchange code for token');
+                }
+
+                const tokenData = await response.json();
+                accessToken = tokenData.access_token;
+
+                updateCodeDisplay('Token exchange successful!', JSON.stringify(tokenData, null, 2));
+
+                // Store token for future use
+                localStorage.setItem('access_token', accessToken);
+
+                // Clean up URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+
+                // Fetch user information
+                fetchUserInfo();
+            } catch (error) {
+                console.error('Token exchange error:', error);
+                showStatus('Failed to exchange authorization code', 'error');
+                updateCodeDisplay('Token exchange failed', error.message);
+            }
+        }
+
+        async function fetchUserInfo() {
+            if (!accessToken) {
+                showLoginSection();
+                return;
+            }
+
+            showStatus('Fetching user information...', 'loading');
+
+            try {
+                const response = await fetch(OAUTH_CONFIG.userinfoEndpoint, {
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user info');
+                }
+
+                userInfo = await response.json();
+
+                updateCodeDisplay('User info fetched successfully!', JSON.stringify(userInfo, null, 2));
+
+                // Display user information
+                displayUserInfo();
+            } catch (error) {
+                console.error('User info fetch error:', error);
+                showStatus('Failed to fetch user information', 'error');
+                updateCodeDisplay('User info fetch failed', error.message);
+                // Token might be expired, show login again
+                localStorage.removeItem('access_token');
+                showLoginSection();
+            }
+        }
+
+        function displayUserInfo() {
+            if (!userInfo) return;
+
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('user-section').classList.remove('hidden');
+
+            document.getElementById('user-name').textContent = userInfo.name || 'Unknown User';
+            document.getElementById('user-email').textContent = userInfo.email || 'No email';
+            document.getElementById('user-id').textContent = userInfo.sub || 'No ID';
+            document.getElementById('login-time').textContent = new Date().toLocaleString();
+
+            // Set avatar initial
+            const initial = (userInfo.name || userInfo.email || 'U').charAt(0).toUpperCase();
+            document.getElementById('user-avatar').textContent = initial;
+
+            showStatus('Login successful! Welcome ' + (userInfo.name || userInfo.email), 'success');
+        }
+
+        function logout() {
+            accessToken = null;
+            userInfo = null;
+            localStorage.removeItem('access_token');
+
+            document.getElementById('user-section').classList.add('hidden');
+            showLoginSection();
+
+            updateCodeDisplay('Logged out successfully', 'User has been logged out');
+        }
+
+        function showLoginSection() {
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('user-section').classList.add('hidden');
+            document.getElementById('status').classList.add('hidden');
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+            statusEl.classList.remove('hidden');
+        }
+
+        function updateCodeDisplay(title, content) {
+            const codeDisplay = document.getElementById('code-display');
+            codeDisplay.innerHTML = '<h3>' + title + '</h3><pre>' + content + '</pre>';
+        }
+
+        function generateState() {
+            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        }
+
+        // For demo purposes, let's add some debugging info
+        console.log('Demo Client Configuration:', OAUTH_CONFIG);
+    </script>
+</body>
+</html>

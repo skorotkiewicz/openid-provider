@@ -1,6 +1,4 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { prisma } from "../lib/db.js";
 import {
 	generateIdToken,
@@ -8,7 +6,6 @@ import {
 	verifyToken,
 	getPublicJWK,
 } from "../lib/jwt.js";
-import { v4 as uuidv4 } from "uuid";
 
 export const oauthRoutes = new Hono();
 

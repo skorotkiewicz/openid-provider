@@ -64,7 +64,13 @@ html
   body
     .hero
       h1 OpenID Provider
+      
+      p Create account to use secure OAuth2/OpenID Connect.
+      .buttons
+        a.btn.btn-primary(href="/user/login") Sign In (user)
+        a.btn.btn-secondary(href="/user/register") Create Account (user)
+
       p Secure authentication for your applications. Create your own OAuth2/OpenID Connect provider.
       .buttons
-        a.btn.btn-primary(href="/user/login") Sign In
-        a.btn.btn-secondary(href="/user/register") Create Account
+        a.btn.btn-primary(href="/dev/login") Sign In (dev)
+        a.btn.btn-secondary(href="/dev/register") Create Account (dev)
