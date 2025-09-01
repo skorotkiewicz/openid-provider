@@ -28,15 +28,16 @@ model User {
 }
 
 model OAuthClient {
-  id           String   @id @default(cuid())
-  clientId     String   @unique
-  clientSecret String
-  name         String
-  redirectUris String[]
-  user         User     @relation(fields: [userId], references: [id])
-  userId       String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  clientId      String   @unique
+  clientSecret  String
+  name          String
+  redirectUris  String[]
+  allowedScopes String[]
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   authorizationCodes AuthorizationCode[]
   refreshTokens      RefreshToken[]

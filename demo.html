@@ -249,7 +249,7 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
 <script>
         // Configuration
         const OAUTH_CONFIG = {
-            clientId: '8b81837f-dde7-4b2f-823f-c774eafae2ad',
+            clientId: '434544a3-f660-41d6-bdad-149d4380f5af',
             redirectUri: window.location.origin + window.location.pathname,
             authorizationEndpoint: 'http://localhost:3000/oauth/authorize',
             tokenEndpoint: 'http://localhost:3000/oauth/token',
@@ -332,7 +332,7 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
                         grant_type: 'authorization_code',
                         code: code,
                         client_id: OAUTH_CONFIG.clientId,
-                        client_secret: 'f79054cd-4594-4fd3-8864-be571ecb2787', // In production, this should be secure
+                        client_secret: '4f775032-7acf-49e1-a7f9-45bb9b12cc01', // In production, this should be secure
                         redirect_uri: OAUTH_CONFIG.redirectUri
                     })
                 });
@@ -470,7 +470,7 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
                         grant_type: 'refresh_token',
                         refresh_token: refreshToken,
                         client_id: OAUTH_CONFIG.clientId,
-                        client_secret: 'f79054cd-4594-4fd3-8864-be571ecb2787'
+                        client_secret: 'demo-client-secret'
                     })
                 });
 

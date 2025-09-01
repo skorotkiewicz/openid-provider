@@ -33,6 +33,25 @@ oauthRoutes.get("/authorize", async (c) => {
 		return c.text("Invalid redirect URI", 400);
 	}
 
+	// Validate requested scopes against allowed scopes
+	const requestedScopes = scope
+		? scope.split(" ").filter((s) => s.trim())
+		: ["openid"];
+	const allowedScopes = client.allowedScopes || [];
+
+	// Check if all requested scopes are allowed
+	const unauthorizedScopes = requestedScopes.filter(
+		(scope) => !allowedScopes.includes(scope),
+	);
+
+	if (unauthorizedScopes.length > 0) {
+		return c.text(
+			`Client is not authorized to request the following scopes: ${unauthorizedScopes.join(", ")}. ` +
+				`Allowed scopes: ${allowedScopes.join(", ")}`,
+			400,
+		);
+	}
+
 	// Check if user is already authenticated (basic session check)
 	// In production, you'd use proper session management or JWT tokens
 	const sessionCookie = c.req.header("Cookie")?.match(/session=([^;]+)/)?.[1];

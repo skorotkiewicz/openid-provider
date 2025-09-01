@@ -27,16 +27,22 @@ async function showConsentScreen(
 		return c.text("Invalid client", 400);
 	}
 
-	// Parse scopes
+	// Parse scopes and filter by allowed scopes
 	const requestedScopes = scope.split(" ").filter((s) => s.trim());
-	const scopeDetails = getScopeDetails(requestedScopes);
+	const allowedScopes = client.allowedScopes || [];
+
+	// Only show scopes that are both requested and allowed
+	const validScopes = requestedScopes.filter((scope) =>
+		allowedScopes.includes(scope),
+	);
+	const scopeDetails = getScopeDetails(validScopes);
 
 	return (c as any).render("user/consent", {
 		client,
 		user,
 		clientId,
 		redirectUri,
-		scope,
+		scope: validScopes.join(" "), // Update scope to only include allowed scopes
 		state,
 		scopeDetails,
 	});

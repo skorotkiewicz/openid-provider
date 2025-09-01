@@ -178,8 +178,7 @@ html
       // Get access token from session storage
       function getAccessToken() {
         if (!accessToken) {
-          accessToken = sessionStorage.getItem('devToken') || 'demo-token-' + Date.now();
-          sessionStorage.setItem('devToken', accessToken);
+          accessToken = sessionStorage.getItem('devToken');
         }
         return accessToken;
       }
@@ -274,6 +273,20 @@ html
         const redirectUri = prompt('Redirect URI (e.g., http://localhost:3001/auth/callback):');
         if (!redirectUri) return;
 
+        // Scope selection
+        const availableScopes = ['openid', 'email', 'name', 'about', 'website', 'twitter', 'github', 'profile'];
+        const selectedScopes = [];
+
+        // Simple scope selection - in production you'd use checkboxes
+        const scopeInput = prompt('Enter allowed scopes (comma-separated) from: openid,email,name,about,website,twitter,github,profile\\n\\nExample: openid,email,name', 'openid,email');
+        if (!scopeInput) return;
+
+        const scopes = scopeInput.split(',').map(s => s.trim()).filter(s => availableScopes.includes(s));
+        if (scopes.length === 0) {
+          alert('No valid scopes selected. Please try again.');
+          return;
+        }
+
         const token = getAccessToken();
         fetch('/dev/api/clients', {
           method: 'POST',
@@ -284,14 +297,14 @@ html
           body: JSON.stringify({
             name,
             redirectUris: [redirectUri],
-            userId: currentUser.id
+            allowedScopes: scopes
           })
         })
         .then(res => res.json())
         .then(client => {
           clients.unshift(client);
           displayClients();
-          alert('Application created!\\n\\nClient ID: ' + client.clientId + '\\nClient Secret: ' + client.clientSecret + '\\n\\nSave the client secret - it won\'t be shown again!');
+          alert('Application created!\\n\\nClient ID: ' + client.clientId + '\\nClient Secret: ' + client.clientSecret + '\\nAllowed Scopes: ' + scopes.join(', ') + '\\n\\nSave the client secret - it won\'t be shown again!');
         })
         .catch(error => {
           console.error('Error creating client:', error);

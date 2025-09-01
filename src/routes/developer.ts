@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../lib/db.js";
+import { verifyToken, generateAccessToken } from "../lib/jwt.js";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 
@@ -61,7 +62,38 @@ developerRoutes.post(
 			);
 		}
 
-		return c.redirect("/dev/dashboard");
+		// Generate JWT token for the developer
+		const token = await generateAccessToken(user.id, "developer-portal");
+
+		// Return HTML that sets the token in sessionStorage and redirects
+		return c.html(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Login Success - Developer Portal</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; text-align: center; }
+        .success { color: #27ae60; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <h1>Login Successful!</h1>
+      <p class="success">Welcome back, ${user.email}</p>
+      <p>Redirecting to dashboard...</p>
+
+      <script>
+        // Store the JWT token in sessionStorage
+        sessionStorage.setItem('devToken', '${token}');
+
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          window.location.href = '/dev/dashboard';
+        }, 1000);
+      </script>
+    </body>
+    </html>
+  `);
 	},
 );
 
@@ -106,7 +138,7 @@ developerRoutes.post(
 		}
 
 		const hashedPassword = await bcrypt.hash(password, 10);
-		await prisma.user.create({
+		const user = await prisma.user.create({
 			data: {
 				email,
 				password: hashedPassword,
@@ -114,7 +146,38 @@ developerRoutes.post(
 			},
 		});
 
-		return c.redirect("/dev/login");
+		// Generate JWT token for the new developer
+		const token = await generateAccessToken(user.id, "developer-portal");
+
+		// Return HTML that sets the token in sessionStorage and redirects
+		return c.html(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Registration Success - Developer Portal</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; text-align: center; }
+        .success { color: #27ae60; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <h1>Registration Successful!</h1>
+      <p class="success">Welcome to the Developer Portal, ${user.email}</p>
+      <p>Redirecting to dashboard...</p>
+
+      <script>
+        // Store the JWT token in sessionStorage
+        sessionStorage.setItem('devToken', '${token}');
+
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          window.location.href = '/dev/dashboard';
+        }, 1000);
+      </script>
+    </body>
+    </html>
+  `);
 	},
 );
 
@@ -128,18 +191,28 @@ developerRoutes.get("/api/me", async (c) => {
 	const token = auth.substring(7);
 
 	try {
-		// For demo purposes, we'll accept any token
-		// In production, you'd verify the JWT token
-		const user = await prisma.user.findFirst();
-		if (!user) {
-			return c.json({ error: "No users found" }, 404);
+		// Verify the JWT token
+		const { payload } = await verifyToken(token);
+		const userId = payload.sub;
+
+		if (!userId) {
+			return c.json({ error: "Invalid token" }, 401);
 		}
 
-		return c.json({
-			id: user.id,
-			email: user.email,
-			name: user.name,
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: {
+				id: true,
+				email: true,
+				name: true,
+			},
 		});
+
+		if (!user) {
+			return c.json({ error: "User not found" }, 404);
+		}
+
+		return c.json(user);
 	} catch (error) {
 		return c.json({ error: "Invalid token" }, 401);
 	}
@@ -151,16 +224,29 @@ developerRoutes.get("/api/clients", async (c) => {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
 
+	const token = auth.substring(7);
+
 	try {
-		// For demo purposes, return all clients
-		// In production, you'd filter by the authenticated user
+		// Verify the JWT token and get user ID
+		const { payload } = await verifyToken(token);
+		const userId = payload.sub;
+
+		if (!userId) {
+			return c.json({ error: "Invalid token" }, 401);
+		}
+
+		// Filter clients by authenticated user
 		const clients = await prisma.oAuthClient.findMany({
+			where: {
+				userId: userId,
+			},
 			select: {
 				id: true,
 				name: true,
 				clientId: true,
 				clientSecret: true,
 				redirectUris: true,
+				allowedScopes: true,
 				createdAt: true,
 			},
 			orderBy: { createdAt: "desc" },
@@ -179,7 +265,7 @@ developerRoutes.post(
 		z.object({
 			name: z.string().min(1),
 			redirectUris: z.array(z.string().url()),
-			userId: z.string(),
+			allowedScopes: z.array(z.string()).min(1),
 		}),
 	),
 	async (c) => {
@@ -188,8 +274,44 @@ developerRoutes.post(
 			return c.json({ error: "Unauthorized" }, 401);
 		}
 
+		const token = auth.substring(7);
+
 		try {
-			const { name, redirectUris, userId } = c.req.valid("json");
+			// Verify the JWT token and get user ID
+			const { payload } = await verifyToken(token);
+			const authenticatedUserId = payload.sub;
+
+			if (!authenticatedUserId) {
+				return c.json({ error: "Invalid token" }, 401);
+			}
+
+			const { name, redirectUris, allowedScopes } = c.req.valid("json");
+
+			// Validate that allowedScopes contains valid scope names
+			const validScopes = [
+				"openid",
+				"email",
+				"name",
+				"about",
+				"website",
+				"twitter",
+				"github",
+				"profile",
+			];
+			const invalidScopes = allowedScopes.filter(
+				(scope) => !validScopes.includes(scope),
+			);
+
+			if (invalidScopes.length > 0) {
+				return c.json(
+					{
+						error: "Invalid scopes",
+						invalidScopes,
+						validScopes,
+					},
+					400,
+				);
+			}
 
 			const clientId = uuidv4();
 			const clientSecret = uuidv4();
@@ -200,7 +322,8 @@ developerRoutes.post(
 					clientSecret,
 					name,
 					redirectUris,
-					userId,
+					allowedScopes,
+					userId: authenticatedUserId, // Use authenticated user's ID
 				},
 			});
 
@@ -210,6 +333,7 @@ developerRoutes.post(
 				clientId: client.clientId,
 				clientSecret: client.clientSecret,
 				redirectUris: client.redirectUris,
+				allowedScopes: client.allowedScopes,
 				createdAt: client.createdAt,
 			});
 		} catch (error) {
@@ -224,9 +348,34 @@ developerRoutes.delete("/api/clients/:id", async (c) => {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
 
+	const token = auth.substring(7);
+
 	try {
+		// Verify the JWT token and get user ID
+		const { payload } = await verifyToken(token);
+		const authenticatedUserId = payload.sub;
+
+		if (!authenticatedUserId) {
+			return c.json({ error: "Invalid token" }, 401);
+		}
+
 		const clientId = c.req.param("id");
 
+		// Check if the client belongs to the authenticated user
+		const client = await prisma.oAuthClient.findUnique({
+			where: { id: clientId },
+			select: { userId: true },
+		});
+
+		if (!client) {
+			return c.json({ error: "Client not found" }, 404);
+		}
+
+		if (client.userId !== authenticatedUserId) {
+			return c.json({ error: "Forbidden" }, 403);
+		}
+
+		// Delete the client
 		await prisma.oAuthClient.delete({
 			where: { id: clientId },
 		});
