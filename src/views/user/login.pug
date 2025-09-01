@@ -75,6 +75,37 @@ html
       .links a:hover {
         text-decoration: underline;
       }
+      .consent-section {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .consent-section h3 {
+        color: #333;
+        margin-top: 0;
+        margin-bottom: 10px;
+      }
+      .consent-section p {
+        margin: 10px 0;
+        color: #666;
+      }
+      .permissions {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 5px;
+        padding: 15px;
+        margin: 10px 0;
+      }
+      .permissions li {
+        margin: 8px 0;
+        color: #495057;
+      }
+      .small {
+        font-size: 12px;
+        color: #6c757d;
+      }
   body
     .login-container
       h1 Sign In
@@ -90,6 +121,19 @@ html
         input(type="hidden", name="state", value=state || "")
         input(type="hidden", name="scope", value=scope || "")
         button(type="submit") Sign In
+      if scope
+        .consent-section
+          h3 Application Permissions
+          p The application is requesting access to:
+          ul.permissions
+            if scope.includes('openid')
+              li ✅ Basic authentication (user identification)
+            if scope.includes('profile')
+              li ✅ Your profile information (name)
+            if scope.includes('email')
+              li ✅ Your email address
+          p.small You can revoke these permissions at any time from your account settings.
+
       .links
         a(href=`/user/register?redirect_uri=${redirectUri || ""}&client_id=${clientId || ""}&state=${state || ""}&scope=${scope || ""}`) Create Account
         a(href="/") Back to Home

@@ -94,9 +94,11 @@ oauthRoutes.post("/token", async (c) => {
 
 	const user = authCode.user;
 
+	const grantedScopes = authCode.scope || "openid";
+
 	const [accessToken, idToken] = await Promise.all([
-		generateAccessToken(user.id, client.id),
-		generateIdToken(user, client.clientId),
+		generateAccessToken(user.id, client.id, grantedScopes),
+		generateIdToken(user, client.clientId, grantedScopes),
 	]);
 
 	await prisma.authorizationCode.delete({ where: { id: authCode.id } });
@@ -121,6 +123,8 @@ oauthRoutes.get("/userinfo", async (c) => {
 	try {
 		const { payload } = await verifyToken(token);
 		const userId = payload.sub;
+		const grantedScopes =
+			typeof payload.scope === "string" ? payload.scope.split(" ") : ["openid"];
 
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
@@ -135,11 +139,22 @@ oauthRoutes.get("/userinfo", async (c) => {
 			return c.json({ error: "invalid_token" }, 401);
 		}
 
-		return c.json({
-			sub: user.id,
-			email: user.email,
-			name: user.name,
-		});
+		// Filter response based on granted scopes
+		const response: any = {
+			sub: user.id, // Always include sub (required by OpenID Connect)
+		};
+
+		// Add profile scope data
+		if (grantedScopes.includes("profile")) {
+			response.name = user.name;
+		}
+
+		// Add email scope data
+		if (grantedScopes.includes("email")) {
+			response.email = user.email;
+		}
+
+		return c.json(response);
 	} catch (error) {
 		return c.json({ error: "invalid_token" }, 401);
 	}

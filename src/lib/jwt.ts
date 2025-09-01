@@ -22,7 +22,11 @@ async function generateKeys() {
 // Initialize keys
 generateKeys().catch(console.error);
 
-export async function generateIdToken(user: any, clientId: string) {
+export async function generateIdToken(
+	user: any,
+	clientId: string,
+	scope?: string,
+) {
 	return new SignJWT({
 		sub: user.id,
 		email: user.email,
@@ -31,18 +35,24 @@ export async function generateIdToken(user: any, clientId: string) {
 		iss: "http://localhost:3000",
 		iat: Math.floor(Date.now() / 1000),
 		exp: Math.floor(Date.now() / 1000) + 3600,
+		scope: scope || "openid",
 	})
 		.setProtectedHeader({ alg: "RS256", kid: "1" })
 		.sign(privateKey);
 }
 
-export async function generateAccessToken(userId: string, clientId: string) {
+export async function generateAccessToken(
+	userId: string,
+	clientId: string,
+	scope?: string,
+) {
 	return new SignJWT({
 		sub: userId,
 		aud: clientId,
 		iss: "http://localhost:3000",
 		iat: Math.floor(Date.now() / 1000),
 		exp: Math.floor(Date.now() / 1000) + 3600,
+		scope: scope || "openid",
 	})
 		.setProtectedHeader({ alg: "RS256", kid: "1" })
 		.sign(privateKey);

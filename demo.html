@@ -113,6 +113,31 @@
             font-size: 14px;
             overflow-x: auto;
         }
+        .scope-selector {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .scope-selector label {
+            display: block;
+            margin: 10px 0;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+        .scope-selector label:hover {
+            background: #e9ecef;
+        }
+        .scope-selector input[type="radio"] {
+            margin-right: 10px;
+        }
         .hidden {
             display: none;
         }
@@ -125,7 +150,27 @@
 
         <div id="login-section" class="login-section">
             <h2>Step 1: Login with OpenID Provider</h2>
-            <p>Click the button below to authenticate using our OpenID Provider</p>
+            <p>Choose the scope for your authentication request:</p>
+
+            <div class="scope-selector">
+                <label><input type="radio" name="scope" value="openid" checked>
+                    <strong>openid</strong> - Basic authentication only
+                    <br><small>✅ User identification</small>
+                </label><br>
+                <label><input type="radio" name="scope" value="openid profile">
+                    <strong>openid profile</strong> - Include profile info
+                    <br><small>✅ User identification + Name</small>
+                </label><br>
+                <label><input type="radio" name="scope" value="openid email">
+                    <strong>openid email</strong> - Include email address
+                    <br><small>✅ User identification + Email</small>
+                </label><br>
+                <label><input type="radio" name="scope" value="openid profile email">
+                    <strong>openid profile email</strong> - Full access
+                    <br><small>✅ User identification + Name + Email</small>
+                </label><br>
+            </div>
+
             <button id="login-button" class="login-button" onclick="startOAuthFlow()">
                 🚀 Login with OpenID Provider
             </button>
@@ -171,7 +216,7 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
             authorizationEndpoint: 'http://localhost:3000/oauth/authorize',
             tokenEndpoint: 'http://localhost:3000/oauth/token',
             userinfoEndpoint: 'http://localhost:3000/oauth/userinfo',
-            scope: 'openid profile email'
+            scope: 'openid profile'
         };
 
         // State management
@@ -206,6 +251,9 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
         function startOAuthFlow() {
             showStatus('Redirecting to OpenID Provider...', 'loading');
 
+            // Get selected scope from radio buttons
+            const selectedScope = document.querySelector('input[name="scope"]:checked').value;
+
             // Generate state for CSRF protection
             const state = generateState();
 
@@ -214,7 +262,7 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
             authUrl.searchParams.set('client_id', OAUTH_CONFIG.clientId);
             authUrl.searchParams.set('response_type', 'code');
             authUrl.searchParams.set('redirect_uri', OAUTH_CONFIG.redirectUri);
-            authUrl.searchParams.set('scope', OAUTH_CONFIG.scope);
+            authUrl.searchParams.set('scope', selectedScope);
             authUrl.searchParams.set('state', state);
 
             updateCodeDisplay('Redirecting to authorization endpoint...', authUrl.toString());

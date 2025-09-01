@@ -85,7 +85,7 @@ userRoutes.post(
 			await prisma.authorizationCode.create({
 				data: {
 					code,
-					clientId: client.id,
+					clientId: client.id, // Use the actual client.id, not client_id
 					userId: user.id,
 					redirectUri: redirect_uri,
 					scope: scope || "openid",
