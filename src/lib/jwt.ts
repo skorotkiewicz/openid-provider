@@ -1,4 +1,3 @@
-import { baseUrl } from "../utils/baseUrl.js";
 import { SignJWT, jwtVerify, exportJWK } from "jose";
 
 // RSA Keys
