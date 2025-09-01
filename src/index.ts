@@ -13,18 +13,18 @@ import { oauthRoutes } from "./routes/oauth.js";
 const app = new Hono();
 
 // Middleware
-app.use("*", logger());
+// app.use("*", logger());
 app.use("*", cors());
 app.use("*", prettyJSON());
 
 // Custom Pug renderer
 app.use("*", async (c, next) => {
-	(c as any).render = (template: string, props?: any) => {
-		const templatePath = `./src/views/${template}.pug`;
-		const html = pug.renderFile(templatePath, props || {});
-		return c.html(html);
-	};
-	await next();
+  (c as any).render = (template: string, props?: any) => {
+    const templatePath = `./src/views/${template}.pug`;
+    const html = pug.renderFile(templatePath, props || {}, undefined);
+    return c.html(html);
+  };
+  await next();
 });
 
 // Routes
@@ -34,36 +34,33 @@ app.route("/oauth", oauthRoutes); // OAuth endpoints
 
 // Home page
 app.get("/", (c) => {
-	return c.render("home");
+  return c.render("home");
 });
 
 // OpenID Connect Discovery
 app.get("/.well-known/openid_configuration", (c) => {
-	const baseUrl = `http://${c.req.header("host")}`;
-	return c.json({
-		issuer: baseUrl,
-		authorization_endpoint: `${baseUrl}/oauth/authorize`,
-		token_endpoint: `${baseUrl}/oauth/token`,
-		userinfo_endpoint: `${baseUrl}/oauth/userinfo`,
-		jwks_uri: `${baseUrl}/oauth/jwks`,
-		response_types_supported: ["code", "id_token", "token id_token"],
-		subject_types_supported: ["public"],
-		id_token_signing_alg_values_supported: ["RS256"],
-		scopes_supported: [
-			"openid",
-			"profile",
-			"email",
-			"name",
-			"about",
-			"website",
-			"twitter",
-			"github",
-		],
-		token_endpoint_auth_methods_supported: [
-			"client_secret_basic",
-			"client_secret_post",
-		],
-	});
+  const baseUrl = `http://${c.req.header("host")}`;
+  return c.json({
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/oauth/authorize`,
+    token_endpoint: `${baseUrl}/oauth/token`,
+    userinfo_endpoint: `${baseUrl}/oauth/userinfo`,
+    jwks_uri: `${baseUrl}/oauth/jwks`,
+    response_types_supported: ["code", "id_token", "token id_token"],
+    subject_types_supported: ["public"],
+    id_token_signing_alg_values_supported: ["RS256"],
+    scopes_supported: [
+      "openid",
+      "profile",
+      "email",
+      "name",
+      "about",
+      "website",
+      "twitter",
+      "github",
+    ],
+    token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
+  });
 });
 
 const port = 3000;
@@ -74,6 +71,6 @@ console.log(`👨‍💻 Developer Portal: http://localhost:${port}/dev/login`);
 console.log(`🔐 OAuth: http://localhost:${port}/oauth`);
 
 serve({
-	fetch: app.fetch,
-	port,
+  fetch: app.fetch,
+  port,
 });
