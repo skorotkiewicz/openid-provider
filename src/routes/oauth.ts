@@ -6,6 +6,7 @@ import {
 	verifyToken,
 	getPublicJWK,
 } from "../lib/jwt.js";
+import { v4 as uuidv4 } from "uuid";
 
 export const oauthRoutes = new Hono();
 
@@ -59,56 +60,122 @@ oauthRoutes.get("/authorize", async (c) => {
 	return c.redirect(loginUrl.toString());
 });
 
-// Token endpoint
+// Token endpoint - handles both authorization_code and refresh_token flows
 oauthRoutes.post("/token", async (c) => {
 	const body = await c.req.parseBody();
-	const { grant_type, code, client_id, client_secret, redirect_uri } = body;
+	const {
+		grant_type,
+		code,
+		refresh_token,
+		client_id,
+		client_secret,
+		redirect_uri,
+	} = body;
 
-	if (grant_type !== "authorization_code") {
-		return c.json({ error: "unsupported_grant_type" }, 400);
+	// Handle refresh token flow
+	if (grant_type === "refresh_token") {
+		if (!refresh_token || !client_id || !client_secret) {
+			return c.json({ error: "invalid_request" }, 400);
+		}
+
+		const client = await prisma.oAuthClient.findUnique({
+			where: { clientId: client_id as string },
+		});
+
+		if (!client || client.clientSecret !== client_secret) {
+			return c.json({ error: "invalid_client" }, 401);
+		}
+
+		const refreshTokenRecord = await prisma.refreshToken.findUnique({
+			where: { token: refresh_token as string },
+			include: { user: true },
+		});
+
+		if (!refreshTokenRecord || refreshTokenRecord.expiresAt < new Date()) {
+			return c.json({ error: "invalid_grant" }, 400);
+		}
+
+		if (refreshTokenRecord.clientId !== client.id) {
+			return c.json({ error: "invalid_grant" }, 400);
+		}
+
+		const user = refreshTokenRecord.user;
+
+		// Generate new access token with same scopes (we'll need to store scopes in refresh token)
+		const accessToken = await generateAccessToken(
+			user.id,
+			client.id,
+			"openid", // Default scope, should be stored in refresh token
+		);
+
+		return c.json({
+			access_token: accessToken,
+			token_type: "Bearer",
+			expires_in: 3600,
+		});
 	}
 
-	const client = await prisma.oAuthClient.findUnique({
-		where: { clientId: client_id as string },
-	});
+	// Handle authorization code flow
+	if (grant_type === "authorization_code") {
+		if (!code || !client_id || !client_secret || !redirect_uri) {
+			return c.json({ error: "invalid_request" }, 400);
+		}
 
-	if (!client || client.clientSecret !== client_secret) {
-		return c.json({ error: "invalid_client" }, 401);
+		const client = await prisma.oAuthClient.findUnique({
+			where: { clientId: client_id as string },
+		});
+
+		if (!client || client.clientSecret !== client_secret) {
+			return c.json({ error: "invalid_client" }, 401);
+		}
+
+		const authCode = await prisma.authorizationCode.findUnique({
+			where: {
+				code: code as string,
+				clientId: client.id,
+			},
+			include: { user: true },
+		});
+
+		if (!authCode || authCode.expiresAt < new Date()) {
+			return c.json({ error: "invalid_grant" }, 400);
+		}
+
+		if (authCode.redirectUri !== redirect_uri) {
+			return c.json({ error: "invalid_grant" }, 400);
+		}
+
+		const user = authCode.user;
+		const grantedScopes = authCode.scope || "openid";
+
+		const [accessToken, idToken] = await Promise.all([
+			generateAccessToken(user.id, client.id, grantedScopes),
+			generateIdToken(user, client.clientId, grantedScopes),
+		]);
+
+		await prisma.authorizationCode.delete({ where: { id: authCode.id } });
+
+		// Create refresh token
+		const refreshTokenValue = uuidv4();
+		await prisma.refreshToken.create({
+			data: {
+				token: refreshTokenValue,
+				clientId: client.id,
+				userId: user.id,
+				expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+			},
+		});
+
+		return c.json({
+			access_token: accessToken,
+			token_type: "Bearer",
+			expires_in: 3600,
+			refresh_token: refreshTokenValue,
+			id_token: idToken,
+		});
 	}
 
-	const authCode = await prisma.authorizationCode.findUnique({
-		where: {
-			code: code as string,
-			clientId: client.id,
-		},
-		include: { user: true },
-	});
-
-	if (!authCode || authCode.expiresAt < new Date()) {
-		return c.json({ error: "invalid_grant" }, 400);
-	}
-
-	if (authCode.redirectUri !== redirect_uri) {
-		return c.json({ error: "invalid_grant" }, 400);
-	}
-
-	const user = authCode.user;
-
-	const grantedScopes = authCode.scope || "openid";
-
-	const [accessToken, idToken] = await Promise.all([
-		generateAccessToken(user.id, client.id, grantedScopes),
-		generateIdToken(user, client.clientId, grantedScopes),
-	]);
-
-	await prisma.authorizationCode.delete({ where: { id: authCode.id } });
-
-	return c.json({
-		access_token: accessToken,
-		token_type: "Bearer",
-		expires_in: 3600,
-		id_token: idToken,
-	});
+	return c.json({ error: "unsupported_grant_type" }, 400);
 });
 
 // UserInfo endpoint

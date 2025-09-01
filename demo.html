@@ -221,7 +221,9 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
 
         // State management
         let accessToken = null;
+        let refreshToken = null;
         let userInfo = null;
+        let tokenExpiry = null;
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -239,9 +241,17 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
                 // We have an authorization code, exchange it for tokens
                 exchangeCodeForToken(code);
             } else if (localStorage.getItem('access_token')) {
-                // We have a stored token, try to use it
+                // We have stored tokens, load them
                 accessToken = localStorage.getItem('access_token');
-                fetchUserInfo();
+                refreshToken = localStorage.getItem('refresh_token');
+                tokenExpiry = parseInt(localStorage.getItem('token_expiry'));
+
+                // Check if token is expired or will expire soon
+                if (Date.now() >= tokenExpiry - 300000) { // 5 minutes before expiry
+                    refreshAccessToken();
+                } else {
+                    fetchUserInfo();
+                }
             } else {
                 // No code or token, show login button
                 showLoginSection();
@@ -295,11 +305,18 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
 
                 const tokenData = await response.json();
                 accessToken = tokenData.access_token;
+                refreshToken = tokenData.refresh_token;
+                tokenExpiry = Date.now() + (tokenData.expires_in * 1000);
 
                 updateCodeDisplay('Token exchange successful!', JSON.stringify(tokenData, null, 2));
 
-                // Store token for future use
+                // Store tokens for future use
                 localStorage.setItem('access_token', accessToken);
+                localStorage.setItem('refresh_token', refreshToken);
+                localStorage.setItem('token_expiry', tokenExpiry.toString());
+
+                // Set up automatic token refresh
+                scheduleTokenRefresh();
 
                 // Clean up URL
                 window.history.replaceState({}, document.title, window.location.pathname);
@@ -366,10 +383,81 @@ Client Secret: f79054cd-4594-4fd3-8864-be571ecb2787 -->
             showStatus('Login successful! Welcome ' + (userInfo.name || userInfo.email), 'success');
         }
 
+        async function refreshAccessToken() {
+            if (!refreshToken) {
+                showLoginSection();
+                return;
+            }
+
+            showStatus('Refreshing access token...', 'loading');
+
+            try {
+                const response = await fetch(OAUTH_CONFIG.tokenEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'refresh_token',
+                        refresh_token: refreshToken,
+                        client_id: OAUTH_CONFIG.clientId,
+                        client_secret: 'f79054cd-4594-4fd3-8864-be571ecb2787'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to refresh token');
+                }
+
+                const tokenData = await response.json();
+                accessToken = tokenData.access_token;
+                tokenExpiry = Date.now() + (tokenData.expires_in * 1000);
+
+                updateCodeDisplay('Token refreshed successfully!', JSON.stringify(tokenData, null, 2));
+
+                // Update stored tokens
+                localStorage.setItem('access_token', accessToken);
+                localStorage.setItem('token_expiry', tokenExpiry.toString());
+
+                // Schedule next refresh
+                scheduleTokenRefresh();
+
+                // Continue with user info fetch
+                fetchUserInfo();
+            } catch (error) {
+                console.error('Token refresh error:', error);
+                showStatus('Failed to refresh token', 'error');
+                updateCodeDisplay('Token refresh failed', error.message);
+                // Clear tokens and show login
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('token_expiry');
+                showLoginSection();
+            }
+        }
+
+        function scheduleTokenRefresh() {
+            if (!tokenExpiry) return;
+
+            // Refresh 5 minutes before expiry
+            const refreshTime = tokenExpiry - Date.now() - 300000;
+
+            if (refreshTime > 0) {
+                setTimeout(() => {
+                    refreshAccessToken();
+                }, refreshTime);
+            }
+        }
+
         function logout() {
             accessToken = null;
+            refreshToken = null;
             userInfo = null;
+            tokenExpiry = null;
+
             localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('token_expiry');
 
             document.getElementById('user-section').classList.add('hidden');
             showLoginSection();
