@@ -25,7 +25,16 @@ app.use("*", async (c, next) => {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const templatePath = join(__dirname, "views", `${template}.pug`);
-    const html = pug.renderFile(templatePath, props || {});
+
+    // Get the current host for dynamic URLs
+    const host = c.req.header("host") || "localhost:3000";
+    const protocol = host.includes("localhost") ? "http" : "https";
+    const baseUrl = `${protocol}://${host}`;
+
+    // Add baseUrl to props for templates
+    const templateProps = { ...props, baseUrl, host };
+
+    const html = pug.renderFile(templatePath, templateProps);
     return c.html(html);
   };
   await next();

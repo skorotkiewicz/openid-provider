@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { prisma } from "../lib/db.js";
 import { generateIdToken, generateAccessToken, verifyToken, getPublicJWK } from "../lib/jwt.js";
 import { v4 as uuidv4 } from "uuid";
+import { baseUrl } from "../utils/baseUrl.js";
 
 export const oauthRoutes = new Hono();
 
@@ -151,8 +152,8 @@ oauthRoutes.post("/token", async (c) => {
     const grantedScopes = authCode.scope || "openid";
 
     const [accessToken, idToken] = await Promise.all([
-      generateAccessToken(user.id, client.id, grantedScopes),
-      generateIdToken(user, client.clientId, grantedScopes),
+      generateAccessToken(user.id, client.id, grantedScopes, baseUrl(c)),
+      generateIdToken(user, client.clientId, grantedScopes, baseUrl(c)),
     ]);
 
     await prisma.authorizationCode.delete({ where: { id: authCode.id } });

@@ -1,3 +1,4 @@
+import { baseUrl } from "../utils/baseUrl.js";
 import { SignJWT, jwtVerify, exportJWK } from "jose";
 
 // RSA Keys
@@ -22,11 +23,16 @@ async function generateKeys() {
 // Initialize keys
 generateKeys().catch(console.error);
 
-export async function generateIdToken(user: any, clientId: string, scope?: string) {
+export async function generateIdToken(
+  user: any,
+  clientId: string,
+  scope?: string,
+  baseUrl?: string,
+) {
   const payload: any = {
     sub: user.id,
     aud: clientId,
-    iss: "http://localhost:3000",
+    iss: baseUrl || "http://localhost:3000",
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 3600,
     scope: scope || "openid",
@@ -68,11 +74,16 @@ export async function generateIdToken(user: any, clientId: string, scope?: strin
   return new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid: "1" }).sign(privateKey);
 }
 
-export async function generateAccessToken(userId: string, clientId: string, scope?: string) {
+export async function generateAccessToken(
+  userId: string,
+  clientId: string,
+  scope?: string,
+  baseUrl?: string,
+) {
   return new SignJWT({
     sub: userId,
     aud: clientId,
-    iss: "http://localhost:3000",
+    iss: baseUrl || "http://localhost:3000",
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 3600,
     scope: scope || "openid",
